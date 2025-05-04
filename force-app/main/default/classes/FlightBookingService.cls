@@ -4,30 +4,23 @@
  */
 public with sharing class FlightBookingService {
     
-    // Amadeus API keys (store these in a protected custom setting in a production environment)
     private static final String AMADEUS_API_KEY = 'YOUR_AMADEUS_API_KEY';
     private static final String AMADEUS_API_SECRET = 'YOUR_AMADEUS_API_SECRET';
     private static final String AMADEUS_TOKEN_ENDPOINT = 'https://test.api.amadeus.com/v1/security/oauth2/token';
     private static final String AMADEUS_FLIGHT_OFFERS_ENDPOINT = 'https://test.api.amadeus.com/v2/shopping/flight-offers';
     
-    /**
-     * Search flights using Amadeus API
-     */
     @AuraEnabled
     public static Map<String, Object> searchFlights(String origin, String destination, String departureDate, 
                                                   Integer adults, Integer children, Integer infants) {
         try {
-            // First get access token
             String accessToken = getAmadeusAccessToken();
             
-            // Build API request
             Http http = new Http();
             HttpRequest request = new HttpRequest();
             request.setEndpoint(AMADEUS_FLIGHT_OFFERS_ENDPOINT);
             request.setMethod('GET');
             request.setHeader('Authorization', 'Bearer ' + accessToken);
             
-            // Build query parameters
             String queryParams = 'originLocationCode=' + origin +
                                 '&destinationLocationCode=' + destination +
                                 '&departureDate=' + departureDate +
@@ -38,12 +31,9 @@ public with sharing class FlightBookingService {
                                 
             request.setEndpoint(AMADEUS_FLIGHT_OFFERS_ENDPOINT + '?' + queryParams);
             
-            // Execute callout
             HttpResponse response = http.send(request);
             
-            // Process response
             if (response.getStatusCode() == 200) {
-                // Parse JSON response
                 Map<String, Object> resultsMap = (Map<String, Object>)JSON.deserializeUntyped(response.getBody());
                 saveFlightsToDatabase(resultsMap);
                 return resultsMap;
@@ -57,9 +47,6 @@ public with sharing class FlightBookingService {
         }
     }
     
-    /**
-     * Get Amadeus API access token
-     */
     private static String getAmadeusAccessToken() {
         Http http = new Http();
         HttpRequest request = new HttpRequest();
@@ -81,9 +68,6 @@ public with sharing class FlightBookingService {
         }
     }
     
-    /**
-     * Save flight search results to database for faster retrieval
-     */
     private static void saveFlightsToDatabase(Map<String, Object> flightResults) {
         try {
             List<Flight__c> flightsToInsert = new List<Flight__c>();
@@ -93,7 +77,6 @@ public with sharing class FlightBookingService {
                 for (Object flightObj : flightData) {
                     Map<String, Object> flight = (Map<String, Object>)flightObj;
                     
-                    // Extract flight info
                     List<Object> itineraries = (List<Object>)flight.get('itineraries');
                     Map<String, Object> price = (Map<String, Object>)flight.get('price');
                     String flightNumber = extractFlightNumber(itineraries);
@@ -116,7 +99,6 @@ public with sharing class FlightBookingService {
                 }
             }
         } catch(Exception e) {
-            // Log error but don't throw to user
             System.debug('Error saving flights: ' + e.getMessage());
         }
     }
@@ -193,7 +175,6 @@ public with sharing class FlightBookingService {
     private static Datetime parseDateTime(String dateTimeStr) {
         if (String.isNotBlank(dateTimeStr)) {
             try {
-                // Parse ISO8601 format (2023-05-15T10:30:00)
                 return (Datetime)JSON.deserialize('"' + dateTimeStr + '"', Datetime.class);
             } catch(Exception e) {
                 System.debug('Error parsing date: ' + e.getMessage());
@@ -202,9 +183,6 @@ public with sharing class FlightBookingService {
         return Datetime.now();
     }
     
-    /**
-     * Create a new booking
-     */
     @AuraEnabled
     public static Booking__c createBooking(String flightId, Decimal totalAmount) {
         try {
@@ -221,9 +199,6 @@ public with sharing class FlightBookingService {
         }
     }
     
-    /**
-     * Add passengers to the booking
-     */
     @AuraEnabled
     public static List<Passenger__c> addPassengers(String bookingId, List<Map<String, Object>> passengers) {
         try {
@@ -254,69 +229,6 @@ public with sharing class FlightBookingService {
         }
     }
     
-    /**
-     * Process payment via Stripe
-     */
-    @AuraEnabled
-    public static Payment__c processPayment(String bookingId, String stripeToken, Decimal amount) {
-        try {
-            // Call Stripe API to process payment - this would be implemented using a callout
-            // In a real implementation, you'd make a callout to Stripe's API here
-            String stripePaymentId = 'test_' + String.valueOf(Math.random()).substring(2, 10);
-            
-            // Create payment record
-            Payment__c payment = new Payment__c(
-                Booking__c = bookingId,
-                Amount__c = amount,
-                StripePaymentId__c = stripePaymentId,
-                PaymentStatus__c = 'Completed'
-            );
-            
-            insert payment;
-            
-            // Update booking status to Confirmed
-            Booking__c booking = [SELECT Id, BookingStatus__c FROM Booking__c WHERE Id = :bookingId LIMIT 1];
-            booking.BookingStatus__c = 'Confirmed';
-            update booking;
-            
-            // In a real implementation, we would also update the available seats on the flight record
-            
-            return payment;
-        } catch(Exception e) {
-            throw new AuraHandledException('Error processing payment: ' + e.getMessage());
-        }
-    }
-    
-    /**
-     * Process refund via Stripe
-     */
-    @AuraEnabled
-    public static Payment__c processRefund(String paymentId) {
-        try {
-            // Retrieve the payment
-            Payment__c payment = [SELECT Id, StripePaymentId__c, Booking__c FROM Payment__c WHERE Id = :paymentId LIMIT 1];
-            
-            // Call Stripe API to process refund - this would be implemented using a callout
-            // In a real implementation, you'd make a callout to Stripe's API here
-            
-            // Update payment status
-            payment.PaymentStatus__c = 'Refunded';
-            update payment;
-            
-            // Update booking status to Cancelled
-            Booking__c booking = [SELECT Id, BookingStatus__c FROM Booking__c WHERE Id = :payment.Booking__c LIMIT 1];
-            booking.BookingStatus__c = 'Cancelled';
-            update booking;
-            
-            return payment;
-        } catch(Exception e) {
-            throw new AuraHandledException('Error processing refund: ' + e.getMessage());
-        }
-    }
-    
-    /**
-     * Get booking history for a user (based on email)
-     */
     @AuraEnabled
     public static List<Booking__c> getBookingHistory(String email) {
         try {
@@ -338,13 +250,9 @@ public with sharing class FlightBookingService {
         }
     }
     
-    /**
-     * Generate PDF ticket (mock implementation)
-     */
     @AuraEnabled
     public static String generateTicket(String bookingId) {
         try {
-            // In a real implementation, you would generate a PDF and return its URL or content
             return '/mock/ticket/' + bookingId + '.pdf';
         } catch(Exception e) {
             throw new AuraHandledException('Error generating ticket: ' + e.getMessage());

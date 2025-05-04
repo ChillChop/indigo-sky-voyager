@@ -4,17 +4,12 @@
  */
 public with sharing class StripeService {
     
-    // Stripe API key (store this in a protected custom setting in a production environment)
     private static final String STRIPE_API_KEY = 'YOUR_STRIPE_API_KEY';
     private static final String STRIPE_API_ENDPOINT = 'https://api.stripe.com/v1';
     
-    /**
-     * Create a payment intent
-     */
     @AuraEnabled
     public static Map<String, String> createPaymentIntent(Decimal amount, String currency) {
         try {
-            // Prepare request for Stripe API
             Http http = new Http();
             HttpRequest request = new HttpRequest();
             request.setEndpoint(STRIPE_API_ENDPOINT + '/payment_intents');
@@ -22,7 +17,6 @@ public with sharing class StripeService {
             request.setHeader('Authorization', 'Bearer ' + STRIPE_API_KEY);
             request.setHeader('Content-Type', 'application/x-www-form-urlencoded');
             
-            // Convert amount to cents/smallest currency unit as required by Stripe
             Integer amountInCents = Integer.valueOf(amount * 100);
             
             String requestBody = 'amount=' + amountInCents + 
@@ -35,7 +29,6 @@ public with sharing class StripeService {
             if (response.getStatusCode() == 200) {
                 Map<String, Object> responseData = (Map<String, Object>)JSON.deserializeUntyped(response.getBody());
                 
-                // Return client secret to frontend for completing the payment
                 return new Map<String, String>{
                     'clientSecret' => (String)responseData.get('client_secret'),
                     'paymentIntentId' => (String)responseData.get('id')
@@ -49,16 +42,9 @@ public with sharing class StripeService {
         }
     }
     
-    /**
-     * Confirm payment success (webhook handler mock)
-     */
     @AuraEnabled
     public static Boolean confirmPaymentSuccess(String paymentIntentId, String bookingId) {
         try {
-            // In a real implementation, you would verify with Stripe that the payment succeeded
-            // For now, we'll mock this behavior
-            
-            // Update payment record
             List<Payment__c> payments = [
                 SELECT Id, PaymentStatus__c 
                 FROM Payment__c 
@@ -71,7 +57,6 @@ public with sharing class StripeService {
                 payment.PaymentStatus__c = 'Completed';
                 update payment;
                 
-                // Update booking status
                 Booking__c booking = [SELECT Id, BookingStatus__c FROM Booking__c WHERE Id = :bookingId LIMIT 1];
                 booking.BookingStatus__c = 'Confirmed';
                 update booking;
@@ -85,13 +70,9 @@ public with sharing class StripeService {
         }
     }
     
-    /**
-     * Process refund
-     */
     @AuraEnabled
     public static Boolean processRefund(String paymentIntentId) {
         try {
-            // Prepare request for Stripe API
             Http http = new Http();
             HttpRequest request = new HttpRequest();
             request.setEndpoint(STRIPE_API_ENDPOINT + '/refunds');
@@ -106,10 +87,7 @@ public with sharing class StripeService {
             
             if (response.getStatusCode() == 200) {
                 Map<String, Object> responseData = (Map<String, Object>)JSON.deserializeUntyped(response.getBody());
-                String refundId = (String)responseData.get('id');
-                String status = (String)responseData.get('status');
                 
-                // Find the payment and update it
                 List<Payment__c> payments = [
                     SELECT Id, PaymentStatus__c, Booking__c 
                     FROM Payment__c 
@@ -122,7 +100,6 @@ public with sharing class StripeService {
                     payment.PaymentStatus__c = 'Refunded';
                     update payment;
                     
-                    // Update booking status
                     Booking__c booking = [SELECT Id, BookingStatus__c FROM Booking__c WHERE Id = :payment.Booking__c LIMIT 1];
                     booking.BookingStatus__c = 'Cancelled';
                     update booking;

@@ -5,4 +5,5 @@
     <label>Email</label>
     <required>true</required>
     <type>Email</type>
+    <unique>true</unique>
 </CustomField>
