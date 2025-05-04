@@ -1,0 +1,530 @@
+
+<template>
+    <div class="indigo-booking-app">
+        <!-- Header Section -->
+        <header class="header">
+            <div class="logo-container">
+                <img src="/resource/IndigoAirlinesLogo" alt="Indigo Airlines Logo" class="logo" />
+            </div>
+            <nav class="navigation">
+                <ul>
+                    <li><a href="#" class="active">Book</a></li>
+                    <li><a href="#" onclick={navigateToManageBookings}>My Bookings</a></li>
+                    <li><a href="#">Check-in</a></li>
+                    <li><a href="#">Flight Status</a></li>
+                </ul>
+            </nav>
+        </header>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Steps Indicator -->
+            <div class="steps-container">
+                <ul class="steps">
+                    <li class={getStepClass('search')}>
+                        <span class="step-number">1</span>
+                        <span class="step-label">Search</span>
+                    </li>
+                    <li class={getStepClass('select')}>
+                        <span class="step-number">2</span>
+                        <span class="step-label">Select Flight</span>
+                    </li>
+                    <li class={getStepClass('seats')}>
+                        <span class="step-number">3</span>
+                        <span class="step-label">Choose Seats</span>
+                    </li>
+                    <li class={getStepClass('passengers')}>
+                        <span class="step-number">4</span>
+                        <span class="step-label">Passenger Details</span>
+                    </li>
+                    <li class={getStepClass('payment')}>
+                        <span class="step-number">5</span>
+                        <span class="step-label">Payment</span>
+                    </li>
+                    <li class={getStepClass('confirmation')}>
+                        <span class="step-number">6</span>
+                        <span class="step-label">Confirmation</span>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Loading spinner -->
+            <div if:true={isLoading} class="loading-spinner">
+                <div class="spinner"></div>
+                <p>Loading...</p>
+            </div>
+
+            <!-- Error display -->
+            <div if:true={errorMessage} class="error-container">
+                <p class="error-message">{errorMessage}</p>
+            </div>
+
+            <!-- Step 1: Search Form -->
+            <div if:true={isSearchStep} class="search-form-container">
+                <div class="form-container">
+                    <h2>Book Your Flight</h2>
+                    <div class="trip-type-selector">
+                        <label class="radio-container">
+                            <input type="radio" name="tripType" value="oneWay" checked={isOneWay} onclick={handleTripTypeChange}/>
+                            <span class="radio-label">One Way</span>
+                        </label>
+                        <label class="radio-container">
+                            <input type="radio" name="tripType" value="roundTrip" checked={isRoundTrip} onclick={handleTripTypeChange}/>
+                            <span class="radio-label">Round Trip</span>
+                        </label>
+                    </div>
+
+                    <div class="form-fields">
+                        <div class="form-group">
+                            <label for="origin">From</label>
+                            <input type="text" id="origin" placeholder="Origin City or Airport" value={origin} onchange={handleOriginChange} required />
+                        </div>
+
+                        <div class="form-group">
+                            <label for="destination">To</label>
+                            <input type="text" id="destination" placeholder="Destination City or Airport" value={destination} onchange={handleDestinationChange} required />
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="departureDate">Departure Date</label>
+                                <input type="date" id="departureDate" value={departureDate} onchange={handleDepartureDateChange} min={today} required />
+                            </div>
+
+                            <div if:true={isRoundTrip} class="form-group">
+                                <label for="returnDate">Return Date</label>
+                                <input type="date" id="returnDate" value={returnDate} onchange={handleReturnDateChange} min={departureDate} />
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="adults">Adults</label>
+                                <select id="adults" value={adults} onchange={handleAdultsChange}>
+                                    <option value="1">1</option>
+                                    <option value="2">2</option>
+                                    <option value="3">3</option>
+                                    <option value="4">4</option>
+                                    <option value="5">5</option>
+                                    <option value="6">6</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="children">Children</label>
+                                <select id="children" value={children} onchange={handleChildrenChange}>
+                                    <option value="0">0</option>
+                                    <option value="1">1</option>
+                                    <option value="2">2</option>
+                                    <option value="3">3</option>
+                                    <option value="4">4</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="infants">Infants</label>
+                                <select id="infants" value={infants} onchange={handleInfantsChange}>
+                                    <option value="0">0</option>
+                                    <option value="1">1</option>
+                                    <option value="2">2</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button class="search-button" onclick={handleSearchFlights}>Search Flights</button>
+                </div>
+            </div>
+
+            <!-- Step 2: Flight Selection -->
+            <div if:true={isSelectStep} class="flight-selection-container">
+                <div class="filters-container">
+                    <h3>Filter By:</h3>
+                    <div class="filters">
+                        <div class="filter-group">
+                            <label for="priceFilter">Price Range:</label>
+                            <input type="range" id="priceFilter" min="0" max="1000" step="10" value={priceFilter} onchange={handlePriceFilterChange} />
+                            <span>Max: ${priceFilter}</span>
+                        </div>
+                        <div class="filter-group">
+                            <label>Airlines:</label>
+                            <div class="checkbox-group">
+                                <label class="checkbox-container">
+                                    <input type="checkbox" name="airline" value="indigo" checked onchange={handleAirlineFilterChange} />
+                                    <span class="checkbox-label">Indigo</span>
+                                </label>
+                                <label class="checkbox-container">
+                                    <input type="checkbox" name="airline" value="other" checked onchange={handleAirlineFilterChange} />
+                                    <span class="checkbox-label">Other Airlines</span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="filter-group">
+                            <label>Sort By:</label>
+                            <select id="sortFilter" onchange={handleSortChange}>
+                                <option value="price">Price (Low to High)</option>
+                                <option value="duration">Duration (Shortest)</option>
+                                <option value="departure">Departure (Earliest)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flights-list">
+                    <template for:each={availableFlights} for:item="flight">
+                        <div key={flight.id} class="flight-card">
+                            <div class="flight-header">
+                                <div class="airline-info">
+                                    <span class="airline-logo">
+                                        <img src="/resource/IndigoAirlinesLogo" alt="Airline Logo" />
+                                    </span>
+                                    <span class="airline-name">Indigo Airlines</span>
+                                </div>
+                                <div class="flight-number">
+                                    Flight {flight.flightNumber}
+                                </div>
+                            </div>
+                            <div class="flight-details">
+                                <div class="route-info">
+                                    <div class="departure">
+                                        <div class="time">{flight.departureTime}</div>
+                                        <div class="code">{flight.origin}</div>
+                                    </div>
+                                    <div class="flight-path">
+                                        <div class="duration">{flight.duration}</div>
+                                        <div class="path-line"></div>
+                                        <div class="stops">{flight.stops} stop</div>
+                                    </div>
+                                    <div class="arrival">
+                                        <div class="time">{flight.arrivalTime}</div>
+                                        <div class="code">{flight.destination}</div>
+                                    </div>
+                                </div>
+                                <div class="price-info">
+                                    <div class="price">${flight.price}</div>
+                                    <button class="select-button" data-id={flight.id} onclick={handleFlightSelect}>Select</button>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                    
+                    <div if:true={noFlightsAvailable} class="no-flights-message">
+                        <p>No flights found matching your criteria. Please try different search parameters.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 3: Seat Selection -->
+            <div if:true={isSeatsStep} class="seat-selection-container">
+                <h2>Select Your Seats</h2>
+                <div class="seat-map-container">
+                    <div class="seat-map-info">
+                        <div class="seat-type-info">
+                            <div class="seat-indicator available"></div>
+                            <span>Available</span>
+                        </div>
+                        <div class="seat-type-info">
+                            <div class="seat-indicator selected"></div>
+                            <span>Selected</span>
+                        </div>
+                        <div class="seat-type-info">
+                            <div class="seat-indicator unavailable"></div>
+                            <span>Unavailable</span>
+                        </div>
+                    </div>
+                    
+                    <div class="airplane-outline">
+                        <div class="front-label">FRONT</div>
+                        <div class="seat-map">
+                            <div class="row-labels">
+                                <span>A</span>
+                                <span>B</span>
+                                <span>C</span>
+                                <span class="aisle"></span>
+                                <span>D</span>
+                                <span>E</span>
+                                <span>F</span>
+                            </div>
+                            
+                            <template for:each={seatRows} for:item="row">
+                                <div key={row.rowNum} class="seat-row">
+                                    <div class="row-number">{row.rowNum}</div>
+                                    <template for:each={row.seats} for:item="seat">
+                                        <div key={seat.id} class={seat.className} data-seat-id={seat.id} onclick={handleSeatClick}>
+                                            {seat.label}
+                                        </div>
+                                        <div if:true={seat.isAisle} key={seat.id + '-aisle'} class="aisle-space"></div>
+                                    </template>
+                                </div>
+                            </template>
+                        </div>
+                        <div class="back-label">BACK</div>
+                    </div>
+                    
+                    <div class="selected-seats-summary">
+                        <h3>Your Selected Seats</h3>
+                        <template for:each={selectedSeats} for:item="seat">
+                            <div key={seat} class="selected-seat-item">Seat {seat}</div>
+                        </template>
+                        <div if:true={noSeatsSelected} class="no-seats-message">
+                            <p>Please select {requiredSeats} seat(s) to continue.</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="navigation-buttons">
+                    <button class="back-button" onclick={handleBackToFlights}>Back</button>
+                    <button class="continue-button" disabled={insufficientSeatsSelected} onclick={handleContinueToPassengers}>Continue</button>
+                </div>
+            </div>
+
+            <!-- Step 4: Passenger Details -->
+            <div if:true={isPassengersStep} class="passenger-details-container">
+                <h2>Passenger Details</h2>
+                
+                <div class="passengers-form">
+                    <template for:each={passengerForms} for:item="passenger" for:index="index">
+                        <div key={passenger.id} class="passenger-form">
+                            <h3>Passenger {index+1}</h3>
+                            <div class="form-group">
+                                <label for={passenger.id + '-name'}>Full Name</label>
+                                <input type="text" id={passenger.id + '-name'} 
+                                       data-index={index} data-field="name"
+                                       value={passenger.name} onchange={handlePassengerChange} required />
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for={passenger.id + '-email'}>Email</label>
+                                    <input type="email" id={passenger.id + '-email'}
+                                           data-index={index} data-field="email"
+                                           value={passenger.email} onchange={handlePassengerChange} required />
+                                </div>
+                                <div class="form-group">
+                                    <label for={passenger.id + '-phone'}>Phone</label>
+                                    <input type="tel" id={passenger.id + '-phone'}
+                                           data-index={index} data-field="phone"
+                                           value={passenger.phone} onchange={handlePassengerChange} required />
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Seat</label>
+                                    <div class="seat-display">{selectedSeats[index] || 'Not Selected'}</div>
+                                </div>
+                                <div class="form-group">
+                                    <label for={passenger.id + '-meal'}>Meal Preference</label>
+                                    <select id={passenger.id + '-meal'} data-index={index} data-field="mealPreference" 
+                                            onchange={handlePassengerChange}>
+                                        <option value="regular">Regular</option>
+                                        <option value="vegetarian">Vegetarian</option>
+                                        <option value="vegan">Vegan</option>
+                                        <option value="diabetic">Diabetic</option>
+                                        <option value="gluten-free">Gluten Free</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+                
+                <div class="navigation-buttons">
+                    <button class="back-button" onclick={handleBackToSeats}>Back</button>
+                    <button class="continue-button" disabled={invalidPassengerData} onclick={handleContinueToPayment}>Continue to Payment</button>
+                </div>
+            </div>
+
+            <!-- Step 5: Payment -->
+            <div if:true={isPaymentStep} class="payment-container">
+                <h2>Payment</h2>
+                
+                <div class="booking-summary">
+                    <h3>Booking Summary</h3>
+                    <div class="summary-item">
+                        <span class="label">Flight:</span>
+                        <span class="value">{selectedFlight.flightNumber}</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="label">Route:</span>
+                        <span class="value">{selectedFlight.origin} to {selectedFlight.destination}</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="label">Date:</span>
+                        <span class="value">{selectedFlight.departureDate}</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="label">Time:</span>
+                        <span class="value">{selectedFlight.departureTime} - {selectedFlight.arrivalTime}</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="label">Passengers:</span>
+                        <span class="value">{totalPassengers}</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="label">Seats:</span>
+                        <span class="value">{selectedSeatsString}</span>
+                    </div>
+                    
+                    <div class="price-breakdown">
+                        <h4>Price Details</h4>
+                        <div class="price-item">
+                            <span class="label">Base Fare ({totalPassengers} x ${selectedFlight.basePrice}):</span>
+                            <span class="value">${baseFareTotal}</span>
+                        </div>
+                        <div class="price-item">
+                            <span class="label">Taxes & Fees:</span>
+                            <span class="value">${taxesAndFees}</span>
+                        </div>
+                        <div class="price-item total">
+                            <span class="label">Total Amount:</span>
+                            <span class="value">${totalAmount}</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="payment-form">
+                    <h3>Payment Details</h3>
+                    <div if:true={paymentError} class="payment-error">
+                        {paymentError}
+                    </div>
+                    
+                    <div class="card-element-container">
+                        <!-- Stripe Card Element will be inserted here -->
+                        <div class="stripe-card-element" lwc:dom="manual"></div>
+                    </div>
+                    
+                    <div class="terms-container">
+                        <label class="checkbox-container">
+                            <input type="checkbox" checked={termsAccepted} onchange={handleTermsChange} />
+                            <span class="checkbox-label">I agree to the <a href="#" onclick={showTermsModal}>terms and conditions</a></span>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="navigation-buttons">
+                    <button class="back-button" onclick={handleBackToPassengers}>Back</button>
+                    <button class="pay-button" disabled={paymentButtonDisabled} onclick={handlePayment}>
+                        Pay ${totalAmount}
+                    </button>
+                </div>
+            </div>
+
+            <!-- Step 6: Confirmation -->
+            <div if:true={isConfirmationStep} class="confirmation-container">
+                <div class="confirmation-card">
+                    <div class="success-icon">✓</div>
+                    <h2>Booking Confirmed!</h2>
+                    <p>Your booking has been successfully completed.</p>
+                    
+                    <div class="booking-details">
+                        <div class="detail-item">
+                            <span class="label">Booking Reference:</span>
+                            <span class="value">{bookingReference}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="label">Flight:</span>
+                            <span class="value">{selectedFlight.flightNumber}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="label">Route:</span>
+                            <span class="value">{selectedFlight.origin} to {selectedFlight.destination}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="label">Date:</span>
+                            <span class="value">{selectedFlight.departureDate}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="label">Time:</span>
+                            <span class="value">{selectedFlight.departureTime}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="label">Passengers:</span>
+                            <span class="value">{totalPassengers}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="confirmation-actions">
+                        <button class="download-button" onclick={handleDownloadTicket}>Download E-Ticket</button>
+                        <button class="email-button" onclick={handleEmailTicket}>Email Ticket</button>
+                    </div>
+                    
+                    <div class="confirmation-footer">
+                        <p>A confirmation email has been sent to {mainPassengerEmail}</p>
+                        <button class="home-button" onclick={handleReturnToHome}>Book Another Flight</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <div class="footer-content">
+                <div class="footer-links">
+                    <div class="footer-column">
+                        <h4>About</h4>
+                        <ul>
+                            <li><a href="#">About Us</a></li>
+                            <li><a href="#">Careers</a></li>
+                            <li><a href="#">Press</a></li>
+                        </ul>
+                    </div>
+                    <div class="footer-column">
+                        <h4>Help</h4>
+                        <ul>
+                            <li><a href="#">Contact Us</a></li>
+                            <li><a href="#">FAQs</a></li>
+                            <li><a href="#">Terms & Conditions</a></li>
+                        </ul>
+                    </div>
+                    <div class="footer-column">
+                        <h4>More</h4>
+                        <ul>
+                            <li><a href="#">Baggage</a></li>
+                            <li><a href="#">Check-in</a></li>
+                            <li><a href="#">Flight Status</a></li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="footer-legal">
+                    <p>&copy; 2023 Indigo Airlines. All rights reserved.</p>
+                </div>
+            </div>
+        </footer>
+    </div>
+    
+    <!-- Modal for Terms and Conditions -->
+    <div if:true={showTerms} class="modal-overlay">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h3>Terms and Conditions</h3>
+                <button class="close-button" onclick={closeTermsModal}>&times;</button>
+            </div>
+            <div class="modal-content">
+                <h4>Booking Terms</h4>
+                <p>By booking a flight with Indigo Airlines, you agree to the following terms:</p>
+                <ul>
+                    <li>Fares are non-refundable unless stated otherwise.</li>
+                    <li>Changes to bookings may incur additional fees.</li>
+                    <li>You must arrive at the airport at least 2 hours before the scheduled departure.</li>
+                    <li>Valid identification is required for all passengers.</li>
+                </ul>
+                
+                <h4>Cancellation Policy</h4>
+                <p>Cancellations made:</p>
+                <ul>
+                    <li>More than 72 hours before departure: 75% refund</li>
+                    <li>Between 72 and 24 hours before departure: 50% refund</li>
+                    <li>Less than 24 hours before departure: No refund</li>
+                </ul>
+                
+                <h4>Baggage Policy</h4>
+                <ul>
+                    <li>Cabin baggage: 1 piece up to 7 kg</li>
+                    <li>Checked baggage: Varies by fare type</li>
+                </ul>
+            </div>
+            <div class="modal-footer">
+                <button class="accept-button" onclick={acceptTerms}>Accept</button>
+            </div>
+        </div>
+    </div>
+</template>

@@ -1,0 +1,255 @@
+
+<template>
+    <div class="booking-manager">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo-container">
+                <img src="/resource/IndigoAirlinesLogo" alt="Indigo Airlines Logo" class="logo" />
+            </div>
+            <nav class="navigation">
+                <ul>
+                    <li><a href="#" onclick={navigateToBooking}>Book</a></li>
+                    <li><a href="#" class="active">My Bookings</a></li>
+                    <li><a href="#">Check-in</a></li>
+                    <li><a href="#">Flight Status</a></li>
+                </ul>
+            </nav>
+        </header>
+        
+        <main class="main-content">
+            <h1>Manage Your Bookings</h1>
+            
+            <div class="search-container">
+                <div class="form-container">
+                    <h2>Find Your Booking</h2>
+                    <div class="form-group">
+                        <label for="bookingReference">Booking Reference</label>
+                        <input type="text" id="bookingReference" placeholder="Enter booking reference" value={bookingReference} onchange={handleReferenceChange} />
+                    </div>
+                    <div class="form-group">
+                        <label for="email">Email Address</label>
+                        <input type="email" id="email" placeholder="Enter email used for booking" value={email} onchange={handleEmailChange} />
+                    </div>
+                    <button class="search-button" onclick={handleSearchBooking}>Search</button>
+                </div>
+            </div>
+            
+            <!-- Loading spinner -->
+            <div if:true={isLoading} class="loading-spinner">
+                <div class="spinner"></div>
+                <p>Loading...</p>
+            </div>
+            
+            <!-- Error message -->
+            <div if:true={errorMessage} class="error-container">
+                <p class="error-message">{errorMessage}</p>
+            </div>
+            
+            <!-- Booking List -->
+            <div if:true={hasBookings} class="bookings-list">
+                <h2>Your Bookings</h2>
+                <template for:each={bookings} for:item="booking">
+                    <div key={booking.Id} class="booking-card">
+                        <div class="booking-header">
+                            <div class="booking-reference">
+                                Booking Reference: <span>{booking.Name}</span>
+                            </div>
+                            <div class="booking-status">
+                                <span class={booking.statusClass}>{booking.BookingStatus__c}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="flight-details">
+                            <div class="airline-info">
+                                <span class="airline-logo">
+                                    <img src="/resource/IndigoAirlinesLogo" alt="Airline Logo" />
+                                </span>
+                                <span class="airline-name">Indigo Airlines</span>
+                            </div>
+                            
+                            <div class="flight-info">
+                                <div class="flight-number">
+                                    Flight {booking.Flight__r.Name}
+                                </div>
+                                <div class="route-info">
+                                    <div class="departure">
+                                        <div class="code">{booking.Flight__r.Origin__c}</div>
+                                        <div class="time">{booking.formattedDepartureTime}</div>
+                                        <div class="date">{booking.formattedDepartureDate}</div>
+                                    </div>
+                                    <div class="flight-path">
+                                        <div class="path-line"></div>
+                                    </div>
+                                    <div class="arrival">
+                                        <div class="code">{booking.Flight__r.Destination__c}</div>
+                                        <div class="time">{booking.formattedArrivalTime}</div>
+                                        <div class="date">{booking.formattedArrivalDate}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="booking-actions">
+                            <button class="action-button view-button" data-id={booking.Id} onclick={handleViewBooking}>View Details</button>
+                            <button if:true={booking.canCancel} class="action-button cancel-button" data-id={booking.Id} onclick={handleCancelBooking}>Cancel Booking</button>
+                            <button if:true={booking.canDownload} class="action-button download-button" data-id={booking.Id} onclick={handleDownloadTicket}>Download E-Ticket</button>
+                        </div>
+                    </div>
+                </template>
+            </div>
+            
+            <!-- No bookings found message -->
+            <div if:true={noBookingsFound} class="no-bookings-container">
+                <div class="no-bookings-message">
+                    <h3>No Bookings Found</h3>
+                    <p>We couldn't find any bookings matching your search criteria. Please check your booking reference and email address.</p>
+                    <button class="book-now-button" onclick={navigateToBooking}>Book a Flight Now</button>
+                </div>
+            </div>
+            
+            <!-- Booking Details Modal -->
+            <div if:true={showBookingDetails} class="modal-overlay">
+                <div class="modal-container booking-details-modal">
+                    <div class="modal-header">
+                        <h3>Booking Details</h3>
+                        <button class="close-button" onclick={closeBookingDetails}>&times;</button>
+                    </div>
+                    <div class="modal-content">
+                        <div class="booking-summary">
+                            <div class="summary-header">
+                                <div>
+                                    <div class="summary-label">Booking Reference</div>
+                                    <div class="summary-value">{selectedBooking.Name}</div>
+                                </div>
+                                <div class="booking-status">
+                                    <span class={selectedBooking.statusClass}>{selectedBooking.BookingStatus__c}</span>
+                                </div>
+                            </div>
+                            
+                            <div class="flight-summary">
+                                <div class="airline-info">
+                                    <img src="/resource/IndigoAirlinesLogo" alt="Airline Logo" class="airline-logo" />
+                                    <span class="airline-name">Indigo Airlines</span>
+                                    <span class="flight-number">Flight {selectedBooking.Flight__r.Name}</span>
+                                </div>
+                                
+                                <div class="route-details">
+                                    <div class="origin">
+                                        <div class="code">{selectedBooking.Flight__r.Origin__c}</div>
+                                        <div class="location">City Name</div>
+                                        <div class="time">{selectedBooking.formattedDepartureTime}</div>
+                                        <div class="date">{selectedBooking.formattedDepartureDate}</div>
+                                    </div>
+                                    <div class="route-line">
+                                        <div class="line"></div>
+                                        <div class="plane-icon">✈</div>
+                                    </div>
+                                    <div class="destination">
+                                        <div class="code">{selectedBooking.Flight__r.Destination__c}</div>
+                                        <div class="location">City Name</div>
+                                        <div class="time">{selectedBooking.formattedArrivalTime}</div>
+                                        <div class="date">{selectedBooking.formattedArrivalDate}</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="passenger-details">
+                                <h4>Passenger Information</h4>
+                                <table class="passenger-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Seat</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <template if:true={hasPassengers} for:each={passengers} for:item="passenger">
+                                            <tr key={passenger.Id}>
+                                                <td>{passenger.Name}</td>
+                                                <td>{passenger.SeatNumber__c}</td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            <div class="price-details">
+                                <h4>Price Details</h4>
+                                <div class="price-item">
+                                    <span class="label">Total Amount Paid:</span>
+                                    <span class="value">${selectedBooking.TotalAmount__c}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button if:true={selectedBooking.canDownload} class="download-button" onclick={handleDownloadSelectedTicket}>Download E-Ticket</button>
+                        <button if:true={selectedBooking.canCancel} class="cancel-button" onclick={handleCancelSelectedBooking}>Cancel Booking</button>
+                        <button class="close-modal-button" onclick={closeBookingDetails}>Close</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Cancel Booking Confirmation Modal -->
+            <div if:true={showCancelConfirmation} class="modal-overlay">
+                <div class="modal-container cancel-modal">
+                    <div class="modal-header">
+                        <h3>Cancel Booking</h3>
+                        <button class="close-button" onclick={closeCancelConfirmation}>&times;</button>
+                    </div>
+                    <div class="modal-content">
+                        <p class="warning-message">Are you sure you want to cancel your booking?</p>
+                        <div class="cancellation-policy">
+                            <h4>Cancellation Policy:</h4>
+                            <ul>
+                                <li>More than 72 hours before departure: 75% refund</li>
+                                <li>Between 72 and 24 hours before departure: 50% refund</li>
+                                <li>Less than 24 hours before departure: No refund</li>
+                            </ul>
+                            <p>Based on your booking, you will receive a <strong>{refundPercentage}%</strong> refund.</p>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="confirm-cancel-button" onclick={confirmCancelBooking}>Confirm Cancellation</button>
+                        <button class="back-button" onclick={closeCancelConfirmation}>Back</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+        
+        <!-- Footer -->
+        <footer class="footer">
+            <div class="footer-content">
+                <div class="footer-links">
+                    <div class="footer-column">
+                        <h4>About</h4>
+                        <ul>
+                            <li><a href="#">About Us</a></li>
+                            <li><a href="#">Careers</a></li>
+                            <li><a href="#">Press</a></li>
+                        </ul>
+                    </div>
+                    <div class="footer-column">
+                        <h4>Help</h4>
+                        <ul>
+                            <li><a href="#">Contact Us</a></li>
+                            <li><a href="#">FAQs</a></li>
+                            <li><a href="#">Terms & Conditions</a></li>
+                        </ul>
+                    </div>
+                    <div class="footer-column">
+                        <h4>More</h4>
+                        <ul>
+                            <li><a href="#">Baggage</a></li>
+                            <li><a href="#">Check-in</a></li>
+                            <li><a href="#">Flight Status</a></li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="footer-legal">
+                    <p>&copy; 2023 Indigo Airlines. All rights reserved.</p>
+                </div>
+            </div>
+        </footer>
+    </div>
+</template>
